@@ -1,6 +1,5 @@
 use global_hotkey::{hotkey::{Code, HotKey, Modifiers}, GlobalHotKeyManager, GlobalHotKeyEvent};
 use tauri::Manager;
-use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -26,9 +25,9 @@ pub fn run() {
                     .unwrap();
             }
 
-            #[cfg(target_os = "macos")]
-            apply_vibrancy(&main_window, NSVisualEffectMaterial::HudWindow, None, None)
-                .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
+            // #[cfg(target_os = "macos")]
+            // apply_vibrancy(&main_window, NSVisualEffectMaterial::HudWindow, None, None)
+            //     .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
 
             if cfg!(debug_assertions) {
                 app.handle().plugin(
@@ -37,6 +36,9 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             let receiver = GlobalHotKeyEvent::receiver();
             std::thread::spawn(move || loop {
