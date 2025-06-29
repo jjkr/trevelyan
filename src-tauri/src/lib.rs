@@ -11,6 +11,21 @@ pub fn run() {
     tauri::Builder::default()
         .setup(move |app| {
             let main_window = app.get_webview_window("main").unwrap();
+
+            if let Some(monitor) = main_window.current_monitor().unwrap() {
+                let size = monitor.size();
+                let width = size.width / 3;
+                let height = size.height;
+                let x = size.width - width;
+
+                main_window
+                    .set_size(tauri::PhysicalSize::new(width, height))
+                    .unwrap();
+                main_window
+                    .set_position(tauri::PhysicalPosition::new(x, 0))
+                    .unwrap();
+            }
+
             #[cfg(target_os = "macos")]
             apply_vibrancy(&main_window, NSVisualEffectMaterial::HudWindow, None, None)
                 .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
