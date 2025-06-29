@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import './App.css';
+import logo from './assets/OriginalLogo.png';
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -34,10 +35,12 @@ function App() {
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Type your message..."
+          placeholder="Ask away..."
           className="chat-input"
         />
-        <button type="submit" className="send-button">Send</button>
+        <button type="submit" className="send-button">
+          <img src={logo} alt="Send" className="send-button-logo" />
+        </button>
       </form>
     </div>
   );

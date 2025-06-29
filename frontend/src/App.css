@@ -30,20 +30,20 @@ html, body, #root {
 .message {
   margin-bottom: 8px;
   padding: 8px 12px;
-  border-radius: 15px;
-  max-width: 80%;
+  border-radius: 5px;
+  max-width: 95%;
   word-wrap: break-word;
 }
 
 .message.user {
   align-self: flex-end; /* User messages on the right */
-  background-color: rgba(0, 123, 255, 0.95); /* Semi-transparent blue for user */
+  background-color: rgba(26, 29, 34, 0.95);
   color: white;
 }
 
 .message.ai {
   align-self: flex-start; /* AI messages on the left */
-  background-color: rgba(108, 117, 125, 0.95); /* Semi-transparent gray for AI */
+  background-color: rgba(60, 60, 60, 0.95); /* Neutral dark grey for AI */
   color: white;
 }
 
@@ -65,19 +65,28 @@ html, body, #root {
 
 .chat-input:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: #ff7b00;
 }
 
 .send-button {
-  padding: 10px 15px;
-  background-color: rgba(0, 123, 255, 0.95); /* Semi-transparent blue */
+  padding: 2px;
+  background-color: rgba(68, 68, 68, 0.95); /* Neutral dark grey background */
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 15px;
   cursor: pointer;
   transition: background-color 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .send-button:hover {
-  background-color: rgba(0, 86, 179, 0.98);
+  background-color: rgba(88, 88, 88, 0.98);
+}
+
+.send-button-logo {
+  width: 2.0em;
+  height: 2.0em;
+  object-fit: contain;
 }
