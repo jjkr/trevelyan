@@ -5,7 +5,7 @@ Trevelyan is a native AI agent for macOS, built with Tauri and Rust. It provides
 ## Features
 
 *   **Global Hotkey:** Access Trevelyan from anywhere with a configurable keyboard shortcut (default: `Super + Space`).
-*   **Modern UI:** A clean, minimal interface with a blurred background effect.
+*   **Modern UI:** A clean, minimal interface with a blurred background effect, now powered by **React and Vite**.
 *   **Extensible:** Supports MCP servers for adding new tools and capabilities.
 
 ## Getting Started
@@ -13,7 +13,7 @@ Trevelyan is a native AI agent for macOS, built with Tauri and Rust. It provides
 ### Prerequisites
 
 *   [Rust](https://www.rust-lang.org/tools/install)
-*   [Node.js](https://nodejs.org/en/download/) (for frontend development, if you choose to use a framework)
+*   [Node.js](https://nodejs.org/en/download/) (for frontend development)
 
 ### Installation
 
@@ -25,11 +25,27 @@ Trevelyan is a native AI agent for macOS, built with Tauri and Rust. It provides
     ```sh
     cd trevelyan
     ```
-3.  Run the application in development mode:
+3.  Install Node.js dependencies for the Tauri project:
     ```sh
-    cd src-tauri
-    cargo tauri dev
+    npm install
     ```
+4.  Navigate to the frontend directory and install its dependencies:
+    ```sh
+    cd frontend
+    npm install
+    cd ..
+    ```
+5.  Run the application in development mode:
+    ```sh
+    npm run tauri dev
+    ```
+
+### Frontend Development
+
+The frontend is built with React and Vite. You can find the source code in the `frontend/` directory.
+
+*   **Development Server:** To run the frontend development server independently (without the Tauri wrapper), navigate to the `frontend/` directory and run `npm run dev`.
+*   **Build:** To build the frontend for production, navigate to the `frontend/` directory and run `npm run build`.
 
 ## License
 
