@@ -31,13 +31,13 @@ html, body, #root {
   margin-bottom: 8px;
   padding: 8px 12px;
   border-radius: 5px;
-  max-width: 95%;
+  max-width: 92%;
   word-wrap: break-word;
 }
 
 .message.user {
   align-self: flex-end; /* User messages on the right */
-  background-color: rgba(26, 29, 34, 0.95);
+  background-color: rgba(26, 39, 44, 0.95);
   color: white;
 }
 
@@ -89,4 +89,48 @@ html, body, #root {
   width: 2.0em;
   height: 2.0em;
   object-fit: contain;
+}
+
+/* Error message styling */
+.message.error {
+  background-color: rgba(60, 60, 60, 0.95); /* Neutral dark grey for AI */
+  border-left: 3px solid #ff4444;
+}
+
+/* Streaming message styling */
+.message.streaming {
+  background-color: rgba(60, 60, 60, 0.95);
+}
+
+.cursor {
+  animation: blink 1s infinite;
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+/* Loading message styling */
+.message.loading {
+  background-color: rgba(60, 60, 60, 0.95);
+  font-style: italic;
+  opacity: 0.8;
+}
+
+/* Disabled input and button styling */
+.chat-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.send-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.send-button:disabled:hover {
+  background-color: rgba(68, 68, 68, 0.95);
 }
