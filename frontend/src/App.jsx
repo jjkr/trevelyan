@@ -1,104 +1,160 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import logo from './assets/OriginalLogo.png';
-import bedrockService from './services/bedrock';
+import useChatManager from './hooks/useChatManager.js';
+import StreamingMessage from './components/StreamingMessage.jsx';
 
 function App() {
-  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef(null);
+  
+  // Initialize chat manager with OpenRouter
+  const {
+    messages,
+    isStreaming,
+    error,
+    currentProvider,
+    sendMessage,
+    stopStreaming,
+    clearConversation,
+    retryLastMessage,
+    canSend,
+    getProviderInfo
+  } = useChatManager('openrouter');
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (input.trim() && !isLoading) {
-      const userMessage = input.trim();
-      setMessages(prev => [...prev, { text: userMessage, sender: 'user' }]);
+    if (input.trim() && canSend) {
+      const messageText = input;
       setInput('');
-      setIsLoading(true);
-
-      // Add empty AI message that will be updated with streaming content
-      const aiMessageIndex = messages.length + 1;
-      setMessages(prev => [...prev, { text: '', sender: 'ai', streaming: true }]);
-
-      try {
-        await bedrockService.streamMessage(
-          userMessage,
-          // onChunk callback - append text as it streams
-          (chunk) => {
-            setMessages(prev => {
-              const newMessages = [...prev];
-              const aiMessage = newMessages[aiMessageIndex];
-              if (aiMessage) {
-                aiMessage.text += chunk;
-              }
-              return newMessages;
-            });
-          },
-          // onError callback
-          (error) => {
-            setMessages(prev => {
-              const newMessages = [...prev];
-              newMessages[aiMessageIndex] = {
-                text: `Error: ${error}`,
-                sender: 'ai',
-                error: true
-              };
-              return newMessages;
-            });
-          }
-        );
-      } catch (error) {
-        setMessages(prev => {
-          const newMessages = [...prev];
-          newMessages[aiMessageIndex] = {
-            text: `Error: ${error.message || 'Failed to get response'}`,
-            sender: 'ai',
-            error: true
-          };
-          return newMessages;
-        });
-      } finally {
-        setIsLoading(false);
-        // Remove streaming flag
-        setMessages(prev => {
-          const newMessages = [...prev];
-          const aiMessage = newMessages[aiMessageIndex];
-          if (aiMessage) {
-            delete aiMessage.streaming;
-          }
-          return newMessages;
-        });
-      }
+      await sendMessage(messageText);
     }
   };
 
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage(e);
+    }
+  };
+
+  const handleRetry = () => {
+    retryLastMessage();
+  };
+
+  const providerInfo = getProviderInfo();
+
   return (
     <div className="app-container">
-      <div className="chat-messages">
-        {messages.map((msg, index) => (
-          <div key={index} className={`message ${msg.sender} ${msg.error ? 'error' : ''} ${msg.streaming ? 'streaming' : ''}`}>
-            {msg.text || (msg.streaming ? 'Thinking...' : '')}
-            {msg.streaming && <span className="cursor">|</span>}
-          </div>
-        ))}
-        {isLoading && messages.length > 0 && !messages[messages.length - 1]?.streaming && (
-          <div className="message ai loading">
-            <span>Connecting to AI...</span>
-          </div>
+      {/* Header with provider info */}
+      <div className="chat-header">
+        <div className="provider-info">
+          <span className="provider-name">
+            {providerInfo?.displayName || 'OpenRouter'}
+          </span>
+          {!providerInfo?.validation.isValid && (
+            <span className="provider-error">
+              ⚠️ Configuration needed
+            </span>
+          )}
+        </div>
+        {messages.length > 0 && (
+          <button 
+            className="clear-button"
+            onClick={clearConversation}
+            disabled={isStreaming}
+          >
+            Clear
+          </button>
         )}
       </div>
+
+      {/* Messages */}
+      <div className="chat-messages">
+        {messages.length === 0 && (
+          <div className="welcome-message">
+            <h2>Welcome to Trevelyan Chat</h2>
+            <p>Start a conversation with AI using OpenRouter</p>
+            {!providerInfo?.validation.isValid && (
+              <div className="setup-notice">
+                <p>⚠️ Please add your OpenRouter API key to the .env file:</p>
+                <code>VITE_OPENROUTER_API_KEY=your_api_key_here</code>
+              </div>
+            )}
+          </div>
+        )}
+        
+        {messages.map((message) => (
+          <StreamingMessage
+            key={message.id}
+            message={message}
+            onRetry={message.status === 'failed' ? handleRetry : null}
+          />
+        ))}
+        
+        {/* Error display */}
+        {error && (
+          <div className="error-message">
+            <div className="error-content">
+              <strong>Error:</strong> {error}
+            </div>
+            <button onClick={() => window.location.reload()}>
+              Reload App
+            </button>
+          </div>
+        )}
+        
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Input form */}
       <form onSubmit={handleSendMessage} className="chat-input-form">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask away..."
-          className="chat-input"
-          disabled={isLoading}
-        />
-        <button type="submit" className="send-button" disabled={isLoading}>
-          <img src={logo} alt="Send" className="send-button-logo" />
-        </button>
+        <div className="input-container">
+          <textarea
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyPress={handleKeyPress}
+            placeholder={
+              canSend 
+                ? "Ask away..." 
+                : "Please configure your API key first..."
+            }
+            className="chat-input"
+            disabled={!canSend}
+            rows={1}
+            style={{
+              resize: 'none',
+              minHeight: '40px',
+              maxHeight: '120px',
+              overflow: 'auto'
+            }}
+          />
+          
+          {isStreaming ? (
+            <button 
+              type="button"
+              onClick={stopStreaming}
+              className="stop-button"
+              aria-label="Stop generation"
+            >
+              ⏹️
+            </button>
+          ) : (
+            <button 
+              type="submit" 
+              className="send-button"
+              disabled={!input.trim() || !canSend}
+              aria-label="Send message"
+            >
+              <img src={logo} alt="Send" className="send-button-logo" />
+            </button>
+          )}
+        </div>
       </form>
     </div>
   );
