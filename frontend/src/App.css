@@ -3,7 +3,7 @@ html, body, #root {
   margin: 0;
   padding: 0;
   overflow: hidden; /* Prevent scrollbars on main body */
-  background-color: transparent; /* Ensure full transparency */
+  background-color: rgba(22, 22, 22, 0.3); /* Subtle dark background */
 }
 
 .app-container {
@@ -105,7 +105,6 @@ html, body, #root {
   border-radius: 5px;
   background-color: rgba(58, 63, 71, 0.95);
   color: white;
-  margin-right: 10px;
 }
 
 .chat-input:focus {
@@ -114,16 +113,16 @@ html, body, #root {
 }
 
 .send-button {
-  padding: 2px;
-  background-color: rgba(68, 68, 68, 0.95); /* Neutral dark grey background */
+  padding: 0px;
+  background-color: transparent; /*rgba(68, 68, 68, 0.95); /* Neutral dark grey background */
   color: white;
   border: none;
-  border-radius: 15px;
-  cursor: pointer;
+  border-radius: 20px;
   transition: background-color 0.2s;
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
 }
 
 .send-button:hover {
@@ -131,8 +130,8 @@ html, body, #root {
 }
 
 .send-button-logo {
-  width: 2.0em;
-  height: 2.0em;
+  width: 3.0em;
+  height: 3.0em;
   object-fit: contain;
 }
 
@@ -234,7 +233,7 @@ html, body, #root {
   color: #ff7b00;
 }
 
-.message-status.complete {
+.message-status.completed {
   background-color: rgba(76, 175, 80, 0.2);
   color: #4caf50;
 }
@@ -268,7 +267,7 @@ html, body, #root {
 
 .chat-input {
   flex-grow: 1;
-  padding: 10px;
+  padding: 5px 10px;
   border: 1px solid rgba(58, 63, 71, 0.95);
   border-radius: 5px;
   background-color: rgba(58, 63, 71, 0.95);
@@ -310,4 +309,234 @@ html, body, #root {
 
 .send-button:disabled:hover {
   background-color: rgba(68, 68, 68, 0.95);
+}
+
+/* Markdown Renderer Styles */
+.user-message-text {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.ai-message-markdown {
+  line-height: 1.6;
+  color: inherit;
+}
+
+.ai-message-markdown .streaming-cursor {
+  display: inline;
+  margin-left: 2px;
+}
+
+/* Markdown Typography */
+.markdown-h1, .markdown-h2, .markdown-h3, 
+.markdown-h4, .markdown-h5, .markdown-h6 {
+  margin: 16px 0 8px 0;
+  font-weight: 600;
+  line-height: 1.25;
+  color: #ff7b00;
+}
+
+.markdown-h1 { font-size: 1.8em; border-bottom: 1px solid rgba(255, 123, 0, 0.3); padding-bottom: 8px; }
+.markdown-h2 { font-size: 1.5em; border-bottom: 1px solid rgba(255, 123, 0, 0.2); padding-bottom: 6px; }
+.markdown-h3 { font-size: 1.3em; }
+.markdown-h4 { font-size: 1.1em; }
+.markdown-h5 { font-size: 1em; }
+.markdown-h6 { font-size: 0.9em; color: rgba(255, 123, 0, 0.8); }
+
+.markdown-p {
+  margin: 8px 0;
+  line-height: 1.6;
+}
+
+.markdown-p:first-child {
+  margin-top: 0;
+}
+
+.markdown-p:last-child {
+  margin-bottom: 0;
+}
+
+/* Lists */
+.markdown-ul, .markdown-ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+
+.markdown-li {
+  margin: 4px 0;
+  line-height: 1.5;
+}
+
+.markdown-ul .markdown-li {
+  list-style-type: disc;
+}
+
+.markdown-ol .markdown-li {
+  list-style-type: decimal;
+}
+
+/* Nested lists */
+.markdown-ul .markdown-ul,
+.markdown-ol .markdown-ol,
+.markdown-ul .markdown-ol,
+.markdown-ol .markdown-ul {
+  margin: 2px 0;
+}
+
+/* Blockquotes */
+.markdown-blockquote {
+  margin: 12px 0;
+  padding: 8px 16px;
+  border-left: 4px solid #ff7b00;
+  background-color: rgba(255, 123, 0, 0.1);
+  border-radius: 0 4px 4px 0;
+  font-style: italic;
+}
+
+.markdown-blockquote .markdown-p {
+  margin: 4px 0;
+}
+
+/* Code */
+.inline-code {
+  background-color: rgba(255, 255, 255, 0.1);
+  color: #ff7b00;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 0.9em;
+  border: 1px solid rgba(255, 123, 0, 0.2);
+}
+
+.code-block {
+  margin: 12px 0 !important;
+  border-radius: 6px !important;
+  overflow: hidden !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.code-block pre {
+  margin: 0 !important;
+  padding: 16px !important;
+  background-color: #1e1e1e !important;
+  overflow-x: auto !important;
+  font-size: 0.9em !important;
+  line-height: 1.4 !important;
+}
+
+/* Tables */
+.markdown-table {
+  border-collapse: collapse;
+  margin: 12px 0;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.markdown-th, .markdown-td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.markdown-th {
+  background-color: rgba(255, 123, 0, 0.1);
+  font-weight: 600;
+  color: #ff7b00;
+  border-bottom: 2px solid rgba(255, 123, 0, 0.3);
+}
+
+.markdown-tr:last-child .markdown-td {
+  border-bottom: none;
+}
+
+.markdown-tr:nth-child(even) {
+  background-color: rgba(255, 255, 255, 0.02);
+}
+
+/* Links */
+.markdown-link {
+  color: #ff7b00;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+  transition: border-bottom-color 0.2s;
+}
+
+.markdown-link:hover {
+  border-bottom-color: #ff7b00;
+}
+
+.markdown-link:visited {
+  color: rgba(255, 123, 0, 0.8);
+}
+
+/* Text formatting */
+.markdown-strong {
+  font-weight: 600;
+  color: #ff7b00;
+}
+
+.markdown-em {
+  font-style: italic;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* Horizontal rule */
+.markdown-hr {
+  margin: 20px 0;
+  border: none;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255, 123, 0, 0.5), transparent);
+}
+
+/* Task lists (GitHub Flavored Markdown) */
+.markdown-li input[type="checkbox"] {
+  margin-right: 8px;
+  accent-color: #ff7b00;
+}
+
+/* Strikethrough */
+del {
+  color: rgba(255, 255, 255, 0.6);
+  text-decoration: line-through;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .markdown-h1 { font-size: 1.5em; }
+  .markdown-h2 { font-size: 1.3em; }
+  .markdown-h3 { font-size: 1.1em; }
+  
+  .code-block pre {
+    font-size: 0.8em !important;
+    padding: 12px !important;
+  }
+  
+  .markdown-table {
+    font-size: 0.9em;
+  }
+  
+  .markdown-th, .markdown-td {
+    padding: 6px 8px;
+  }
+}
+
+/* Scrollbar styling for code blocks */
+.code-block pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+.code-block pre::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+.code-block pre::-webkit-scrollbar-thumb {
+  background: rgba(255, 123, 0, 0.5);
+  border-radius: 4px;
+}
+
+.code-block pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 123, 0, 0.7);
 }

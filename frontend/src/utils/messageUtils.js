@@ -63,7 +63,7 @@ export const updateMessageText = (message, newText) => {
 export const completeMessage = (message) => {
   return {
     ...message,
-    status: 'complete',
+    status: 'completed',
     isStreaming: false,
     completedAt: new Date().toISOString()
   };

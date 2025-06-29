@@ -95,41 +95,33 @@ const useChatManager = (providerName = 'openrouter', options = {}) => {
 
       // Start streaming
       let accumulatedText = '';
-      let chunkCount = 0;
-      const maxChunksPerUpdate = 3; // Batch chunks for smoother rendering
-
-      for await (const chunk of provider.streamChat(apiMessages, {
+      const stream = provider.streamChat(apiMessages, {
         model: options.model,
         temperature: options.temperature,
         maxTokens: options.maxResponseTokens || 2000,
         ...messageOptions
-      })) {
-        // Check if request was aborted
-        if (abortControllerRef.current?.signal.aborted) {
-          break;
-        }
+      });
 
-        accumulatedText += chunk;
-        chunkCount++;
-
-        // Update UI every few chunks or on significant content
-        if (chunkCount >= maxChunksPerUpdate || chunk.includes('\n') || chunk.includes('.')) {
-          setMessages(prev => prev.map(msg => 
+      try {
+        for await (const chunk of stream) {
+          if (abortControllerRef.current?.signal.aborted) {
+            break;
+          }
+          accumulatedText += chunk;
+          setMessages(prev => prev.map(msg =>
             msg.id === streamingMessageIdRef.current
               ? updateMessageText(msg, accumulatedText)
               : msg
           ));
-          chunkCount = 0;
         }
+      } finally {
+        // Ensure message is marked as complete
+        setMessages(prev => prev.map(msg =>
+          msg.id === streamingMessageIdRef.current
+            ? completeMessage(updateMessageText(msg, accumulatedText))
+            : msg
+        ));
       }
-
-      // Final update with complete text
-      setMessages(prev => prev.map(msg => 
-        msg.id === streamingMessageIdRef.current
-          ? completeMessage(updateMessageText(msg, accumulatedText))
-          : msg
-      ));
-
     } catch (err) {
       console.error('Error sending message:', err);
       
