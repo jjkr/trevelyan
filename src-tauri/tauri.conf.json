@@ -18,7 +18,10 @@
         "decorations": false,
         "transparent": true,
         "alwaysOnTop": true,
-        "backgroundColor": "#00000000"
+        "backgroundColor": "#00000000",
+        "devtools": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true
       }
     ],
     "security": {

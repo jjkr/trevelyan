@@ -1,5 +1,7 @@
 use global_hotkey::{hotkey::{Code, HotKey, Modifiers}, GlobalHotKeyManager, GlobalHotKeyEvent};
 use tauri::Manager;
+#[cfg(target_os = "macos")]
+use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -25,8 +27,9 @@ pub fn run() {
                     .unwrap();
             }
 
+            // Remove vibrancy for true transparency on macOS Sequoia
             // #[cfg(target_os = "macos")]
-            // apply_vibrancy(&main_window, NSVisualEffectMaterial::HudWindow, None, None)
+            // apply_vibrancy(&main_window, NSVisualEffectMaterial::UnderWindowBackground, None, None)
             //     .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
 
             if cfg!(debug_assertions) {

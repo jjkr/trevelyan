@@ -21,9 +21,10 @@ html, body, #root {
   flex-grow: 1; /* Takes up all available space */
   overflow-y: auto; /* Enable scrolling for messages */
   padding: 10px;
-  border-bottom: 1px solid #3a3f47;
+  border-bottom: none; /* Remove border for full transparency */
   display: flex;
   flex-direction: column; /* Messages stack vertically */
+  background-color: transparent; /* Ensure transparent background */
 }
 
 .message {
@@ -36,27 +37,28 @@ html, body, #root {
 
 .message.user {
   align-self: flex-end; /* User messages on the right */
-  background-color: #007bff; /* Blue for user */
+  background-color: rgba(0, 123, 255, 0.95); /* Semi-transparent blue for user */
   color: white;
 }
 
 .message.ai {
   align-self: flex-start; /* AI messages on the left */
-  background-color: #6c757d; /* Gray for AI */
+  background-color: rgba(108, 117, 125, 0.95); /* Semi-transparent gray for AI */
   color: white;
 }
 
 .chat-input-form {
   display: flex;
   padding-top: 10px;
+  background-color: transparent; /* Ensure transparent background */
 }
 
 .chat-input {
   flex-grow: 1;
   padding: 10px;
-  border: 1px solid #3a3f47;
+  border: 1px solid rgba(58, 63, 71, 0.95);
   border-radius: 5px;
-  background-color: #3a3f47;
+  background-color: rgba(58, 63, 71, 0.95);
   color: white;
   margin-right: 10px;
 }
@@ -68,7 +70,7 @@ html, body, #root {
 
 .send-button {
   padding: 10px 15px;
-  background-color: #007bff;
+  background-color: rgba(0, 123, 255, 0.95); /* Semi-transparent blue */
   color: white;
   border: none;
   border-radius: 5px;
@@ -77,5 +79,5 @@ html, body, #root {
 }
 
 .send-button:hover {
-  background-color: #0056b3;
+  background-color: rgba(0, 86, 179, 0.98);
 }
