@@ -3,6 +3,11 @@ use tauri::Manager;
 #[cfg(target_os = "macos")]
 use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 
+mod audio;
+mod commands;
+
+use commands::{VoiceState, initialize_whisper, start_realtime_recording, stop_recording, is_recording, is_whisper_ready, get_whisper_status};
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let manager = GlobalHotKeyManager::new().unwrap();
@@ -10,6 +15,15 @@ pub fn run() {
     manager.register(hotkey).unwrap();
 
     tauri::Builder::default()
+        .manage(VoiceState::new().expect("Failed to initialize voice state"))
+        .invoke_handler(tauri::generate_handler![
+            initialize_whisper,
+            start_realtime_recording,
+            stop_recording,
+            is_recording,
+            is_whisper_ready,
+            get_whisper_status
+        ])
         .setup(move |app| {
             let main_window = app.get_webview_window("main").unwrap();
 

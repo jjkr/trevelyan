@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import logo from './assets/OriginalLogo.png';
 import useChatManager from './hooks/useChatManager.js';
-import useVoiceInput from './hooks/useVoiceInput.js';
+import useWhisperVoiceInput from './hooks/useWhisperVoiceInput.js';
 import StreamingMessage from './components/StreamingMessage.jsx';
 
 function App() {
@@ -31,11 +31,13 @@ function App() {
     interimTranscript,
     isSupported,
     error: voiceError,
+    isInitializing,
+    isProcessing,
     startListening,
     stopListening,
     resetTranscript,
     fullTranscript
-  } = useVoiceInput();
+  } = useWhisperVoiceInput();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -228,16 +230,22 @@ function App() {
           
           <div className="input-buttons">
             {/* Voice input button */}
-            {isSupported && (
+            {(isSupported || isInitializing) && (
               <button
                 type="button"
                 onClick={handleVoiceToggle}
-                className={`voice-button ${isListening ? 'listening' : ''}`}
-                disabled={!canSend || isStreaming}
-                aria-label={isListening ? "Stop voice input" : "Start voice input"}
-                title={isListening ? "Stop voice input" : "Start voice input"}
+                className={`voice-button ${isListening ? 'listening' : ''} ${isProcessing ? 'processing' : ''}`}
+                disabled={!canSend || isStreaming || isInitializing}
+                aria-label={
+                  isInitializing ? "Initializing Whisper..." :
+                  isListening ? "Stop voice input" : "Start voice input"
+                }
+                title={
+                  isInitializing ? "Initializing Whisper..." :
+                  isListening ? "Stop voice input" : "Start voice input"
+                }
               >
-                🎤
+                {isInitializing ? '⏳' : isProcessing ? '🔄' : '🎤'}
               </button>
             )}
             
