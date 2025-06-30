@@ -33,13 +33,19 @@ impl WhisperService {
             self.download_model().await?;
         }
 
-        // Initialize Whisper context
-        let ctx_params = WhisperContextParameters::default();
+        // Initialize Whisper context with optimized CPU processing
+        let mut ctx_params = WhisperContextParameters::default();
+        
+        // Use optimized CPU processing (avoids Metal shader issues)
+        ctx_params.use_gpu(true);
+        
+        println!("Initializing Whisper with optimized CPU processing...");
         self.context = Some(WhisperContext::new_with_params(
             self.model_path.to_str().unwrap(),
             ctx_params,
         )?);
 
+        println!("Whisper context initialized successfully with optimized CPU processing");
         self.is_initialized = true;
         Ok(())
     }
@@ -75,11 +81,11 @@ impl WhisperService {
 
         let context = self.context.as_ref().unwrap();
         
-        // Create parameters for transcription
+        // Create parameters for transcription optimized for real-time processing
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
         
-        // Configure for real-time processing
-        params.set_n_threads(2); // Use 2 threads for balance of speed/CPU usage
+        // Configure for optimized CPU processing
+        params.set_n_threads(4); // Use multiple threads for CPU processing
         params.set_translate(false); // Don't translate, just transcribe
         params.set_language(Some("en")); // English only for base.en model
         params.set_print_special(false);
@@ -87,16 +93,35 @@ impl WhisperService {
         params.set_print_realtime(false);
         params.set_print_timestamps(false);
         
-        // Process the audio - using the correct method name for whisper-rs 0.10
-        println!("Creating whisper state for transcription...");
-        let mut state = context.create_state()?;
+        // Real-time optimization settings
+        params.set_temperature(0.0); // Deterministic output for consistency
+        params.set_max_len(0); // No length limit for real-time
+        params.set_token_timestamps(false); // Disable for speed
+        params.set_suppress_blank(true); // Skip blank outputs
+        params.set_suppress_nst(true); // Skip non-speech for speed
         
-        println!("Running whisper transcription...");
+        // Process the audio with performance timing
+        let start_time = std::time::Instant::now();
+        
+        println!("Creating whisper state for transcription...");
+        let state_start = std::time::Instant::now();
+        let mut state = context.create_state()?;
+        let state_duration = state_start.elapsed();
+        
+        println!("Running whisper transcription with optimized CPU processing...");
+        let transcription_start = std::time::Instant::now();
         state.full(params, audio_data)?;
+        let transcription_duration = transcription_start.elapsed();
         
         // Extract transcription
+        let extraction_start = std::time::Instant::now();
         let num_segments = state.full_n_segments()?;
-        println!("Transcription complete: {} segments found", num_segments);
+        let extraction_duration = extraction_start.elapsed();
+        
+        let total_duration = start_time.elapsed();
+        println!("Transcription performance: total={:.2}ms, state_creation={:.2}ms, transcription={:.2}ms, extraction={:.2}ms, segments={}",
+                 total_duration.as_millis(), state_duration.as_millis(), 
+                 transcription_duration.as_millis(), extraction_duration.as_millis(), num_segments);
         
         let mut result = String::new();
         

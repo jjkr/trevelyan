@@ -81,12 +81,12 @@ impl AudioProcessor {
                             whisper.add_audio_to_buffer(audio_chunk.clone());
                         }
 
-                        // Accumulate audio chunks and process less frequently to reduce overhead
+                        // Accumulate audio chunks and process more frequently for lower latency
                         audio_buffer.extend_from_slice(&audio_chunk);
                         
-                        // Process every 5 chunks (about 5 seconds of audio)
-                        // This reduces the frequency of transcriptions and state creation
-                        if chunk_count % 5 == 0 {
+                        // Process every 2 chunks (about 2 seconds of audio) for faster response
+                        // GPU acceleration should handle the increased frequency better
+                        if chunk_count % 2 == 0 {
                             println!("Processing accumulated audio: {} samples", audio_buffer.len());
                             
                             if let Ok(whisper) = whisper_service.lock() {
