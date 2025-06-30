@@ -99,7 +99,7 @@ html, body, #root {
 
 .chat-input-form {
   display: flex;
-  /*padding-top: 10px;*/
+  padding-top: 10px;
   background-color: transparent; /* Ensure transparent background */
 }
 
@@ -428,7 +428,7 @@ html, body, #root {
   padding: 2px 4px;
   border-radius: 3px;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-  font-size: 0.9em;
+  font-size: 0.7em;
   border: 1px solid rgba(255, 123, 0, 0.2);
 }
 
@@ -563,4 +563,101 @@ del {
 
 .code-block pre::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 123, 0, 0.7);
+}
+
+/* Voice Input Styles */
+.input-buttons {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.voice-button {
+  padding: 8px 12px;
+  background-color: rgba(68, 68, 68, 0.95);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 5px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 16px;
+  min-width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.voice-button:hover:not(:disabled) {
+  background-color: rgba(88, 88, 88, 0.98);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.voice-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.voice-button.listening {
+  background-color: rgba(255, 123, 0, 0.2);
+  border-color: #ff7b00;
+  color: #ff7b00;
+  animation: pulse 1.5s infinite;
+}
+
+.voice-button.listening:hover {
+  background-color: rgba(255, 123, 0, 0.3);
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(255, 123, 0, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(255, 123, 0, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 123, 0, 0);
+  }
+}
+
+/* Voice error specific styling */
+.voice-error {
+  border-color: rgba(255, 193, 7, 0.5);
+  background-color: rgba(255, 193, 7, 0.1);
+  color: #ffc107;
+}
+
+/* Responsive voice button */
+@media (max-width: 768px) {
+  .voice-button {
+    min-width: 40px;
+    height: 40px;
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+  
+  .input-buttons {
+    gap: 6px;
+  }
+}
+
+/* Voice input status indicator */
+.voice-status {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: #ff7b00;
+  border: 2px solid rgba(22, 22, 22, 0.8);
+  animation: blink 1s infinite;
+}
+
+/* Interim transcript styling */
+.chat-input.listening {
+  border-color: #ff7b00;
+  box-shadow: 0 0 0 2px rgba(255, 123, 0, 0.2);
 }

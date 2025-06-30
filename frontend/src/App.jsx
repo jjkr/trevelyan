@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import logo from './assets/OriginalLogo.png';
 import useChatManager from './hooks/useChatManager.js';
+import useVoiceInput from './hooks/useVoiceInput.js';
 import StreamingMessage from './components/StreamingMessage.jsx';
 
 function App() {
@@ -23,6 +24,19 @@ function App() {
     getProviderInfo
   } = useChatManager('openrouter');
 
+  // Initialize voice input
+  const {
+    isListening,
+    transcript,
+    interimTranscript,
+    isSupported,
+    error: voiceError,
+    startListening,
+    stopListening,
+    resetTranscript,
+    fullTranscript
+  } = useVoiceInput();
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -35,6 +49,34 @@ function App() {
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight-8}px`; // JJK - subtracting pixels for padding
     }
   }, [input]);
+
+  // Handle voice input updates
+  useEffect(() => {
+    if (isListening) {
+      // While listening, show interim transcript with indicator
+      if (interimTranscript) {
+        setInput(prev => {
+          // Remove any previous interim transcript and add new one
+          const baseInput = prev.replace(/\s*\[Speaking...\].*$/, '');
+          return baseInput + (baseInput ? ' ' : '') + `[Speaking...] ${interimTranscript}`;
+        });
+      }
+    } else {
+      // When stopped listening, clean up interim transcript and add final transcript
+      if (transcript) {
+        setInput(prev => {
+          // Remove interim transcript indicator and add final transcript
+          const baseInput = prev.replace(/\s*\[Speaking...\].*$/, '');
+          const newText = baseInput + (baseInput ? ' ' : '') + transcript;
+          resetTranscript(); // Clear the transcript after adding it
+          return newText;
+        });
+      } else {
+        // Just remove the interim transcript indicator if no final transcript
+        setInput(prev => prev.replace(/\s*\[Speaking...\].*$/, ''));
+      }
+    }
+  }, [isListening, transcript, interimTranscript, resetTranscript]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -57,6 +99,29 @@ function App() {
 
   const handleRetry = () => {
     retryLastMessage();
+  };
+
+  const handleVoiceToggle = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
+
+  const handleSendVoiceMessage = () => {
+    if (transcript.trim()) {
+      setInput(transcript);
+      resetTranscript();
+      // Auto-send after a brief delay to allow input to update
+      setTimeout(() => {
+        if (transcript.trim() && canSend) {
+          const messageText = transcript;
+          setInput('');
+          sendMessage(messageText);
+        }
+      }, 100);
+    }
   };
 
   const providerInfo = getProviderInfo();
@@ -122,6 +187,18 @@ function App() {
             </button>
           </div>
         )}
+
+        {/* Voice error display */}
+        {voiceError && (
+          <div className="error-message voice-error">
+            <div className="error-content">
+              <strong>Voice Error:</strong> {voiceError}
+            </div>
+            <button onClick={() => window.location.reload()}>
+              Reload App
+            </button>
+          </div>
+        )}
         
         <div ref={messagesEndRef} />
       </div>
@@ -139,7 +216,7 @@ function App() {
                 ? "Ask away..." 
                 : "Please configure your API key first..."
             }
-            className="chat-input"
+            className={`chat-input ${isListening ? 'listening' : ''}`}
             disabled={!canSend}
             rows={1}
             style={{
@@ -149,25 +226,42 @@ function App() {
             }}
           />
           
-          {isStreaming ? (
-            <button 
-              type="button"
-              onClick={stopStreaming}
-              className="stop-button"
-              aria-label="Stop generation"
-            >
-              ⏹️
-            </button>
-          ) : (
-            <button 
-              type="submit" 
-              className="send-button"
-              disabled={!input.trim() || !canSend}
-              aria-label="Send message"
-            >
-              <img src={logo} alt="Send" className="send-button-logo" />
-            </button>
-          )}
+          <div className="input-buttons">
+            {/* Voice input button */}
+            {isSupported && (
+              <button
+                type="button"
+                onClick={handleVoiceToggle}
+                className={`voice-button ${isListening ? 'listening' : ''}`}
+                disabled={!canSend || isStreaming}
+                aria-label={isListening ? "Stop voice input" : "Start voice input"}
+                title={isListening ? "Stop voice input" : "Start voice input"}
+              >
+                🎤
+              </button>
+            )}
+            
+            {/* Send/Stop button */}
+            {isStreaming ? (
+              <button 
+                type="button"
+                onClick={stopStreaming}
+                className="stop-button"
+                aria-label="Stop generation"
+              >
+                ⏹️
+              </button>
+            ) : (
+              <button 
+                type="submit" 
+                className="send-button"
+                disabled={!input.trim() || !canSend}
+                aria-label="Send message"
+              >
+                <img src={logo} alt="Send" className="send-button-logo" />
+              </button>
+            )}
+          </div>
         </div>
       </form>
     </div>
