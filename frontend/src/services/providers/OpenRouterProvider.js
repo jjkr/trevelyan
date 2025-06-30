@@ -56,8 +56,10 @@ class OpenRouterProvider extends BaseLLMProvider {
       max_tokens: maxTokens,
       stream
     };
+    console.log('OpenRouter Request Body:', JSON.stringify(requestBody, null, 2));
 
     try {
+      console.log('Attempting to fetch from OpenRouter...');
       const response = await fetch(`${this.baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
@@ -68,9 +70,11 @@ class OpenRouterProvider extends BaseLLMProvider {
         },
         body: JSON.stringify(requestBody)
       });
+      console.log('OpenRouter Response Status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
+        console.error('OpenRouter API Error Data:', errorData);
         throw new Error(`OpenRouter API error: ${response.status} - ${errorData.error?.message || response.statusText}`);
       }
 
@@ -89,9 +93,14 @@ class OpenRouterProvider extends BaseLLMProvider {
         while (true) {
           const { done, value } = await reader.read();
           
-          if (done) break;
+          if (done) {
+            console.log('Stream finished.');
+            break;
+          }
 
-          buffer += decoder.decode(value, { stream: true });
+          const chunk = decoder.decode(value, { stream: true });
+          console.log('Raw chunk received:', chunk);
+          buffer += chunk;
           const lines = buffer.split('\n');
           buffer = lines.pop() || ''; // Keep incomplete line in buffer
 
@@ -99,16 +108,26 @@ class OpenRouterProvider extends BaseLLMProvider {
             const trimmedLine = line.trim();
             
             if (trimmedLine === '') continue;
-            if (trimmedLine === 'data: [DONE]') return;
-            if (!trimmedLine.startsWith('data: ')) continue;
+            if (trimmedLine === 'data: [DONE]') {
+              console.log('Received [DONE] signal.');
+              return;
+            }
+            if (!trimmedLine.startsWith('data: ')) {
+              console.warn('Skipping line without "data: " prefix:', trimmedLine);
+              continue;
+            }
 
             try {
               const jsonStr = trimmedLine.slice(6); // Remove 'data: ' prefix
               const data = JSON.parse(jsonStr);
+              console.log('Parsed data:', data);
               
               const content = data.choices?.[0]?.delta?.content;
               if (content) {
+                console.log('Yielding content:', content);
                 yield content;
+              } else {
+                console.log('No content in this chunk.');
               }
             } catch (parseError) {
               console.warn('Failed to parse SSE data:', trimmedLine, parseError);

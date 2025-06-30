@@ -60,7 +60,9 @@ const useChatManager = (providerName = 'openrouter', options = {}) => {
    * Send a message and handle streaming response
    */
   const sendMessage = useCallback(async (text, messageOptions = {}) => {
+    console.log('sendMessage called with text:', text);
     if (!text.trim() || isStreaming || !provider) {
+      console.log('sendMessage aborted:', { hasText: !!text.trim(), isStreaming, hasProvider: !!provider });
       return;
     }
 
@@ -86,6 +88,7 @@ const useChatManager = (providerName = 'openrouter', options = {}) => {
       const recentMessages = getRecentMessages(conversationHistory, options.maxContextMessages || 20);
       const truncatedMessages = truncateConversation(recentMessages, options.maxTokens || 3000);
       const apiMessages = formatMessagesForAPI(truncatedMessages);
+      console.log('Messages sent to API:', apiMessages);
 
       // Validate provider configuration
       const validation = provider.validateConfig();
@@ -103,10 +106,13 @@ const useChatManager = (providerName = 'openrouter', options = {}) => {
       });
 
       try {
+        console.log('Starting to iterate over stream...');
         for await (const chunk of stream) {
           if (abortControllerRef.current?.signal.aborted) {
+            console.log('Streaming aborted by user.');
             break;
           }
+          console.log('Received chunk:', chunk);
           accumulatedText += chunk;
           setMessages(prev => prev.map(msg =>
             msg.id === streamingMessageIdRef.current
@@ -114,10 +120,14 @@ const useChatManager = (providerName = 'openrouter', options = {}) => {
               : msg
           ));
         }
+        console.log('Finished iterating over stream.');
       } finally {
+        // Capture the message ID before nullifying the ref to avoid race condition
+        const messageId = streamingMessageIdRef.current;
+        
         // Ensure message is marked as complete
         setMessages(prev => prev.map(msg =>
-          msg.id === streamingMessageIdRef.current
+          msg.id === messageId
             ? completeMessage(updateMessageText(msg, accumulatedText))
             : msg
         ));
@@ -125,10 +135,13 @@ const useChatManager = (providerName = 'openrouter', options = {}) => {
     } catch (err) {
       console.error('Error sending message:', err);
       
+      // Capture the message ID before nullifying the ref to avoid race condition
+      const messageId = streamingMessageIdRef.current;
+      
       // Update the streaming message with error
-      if (streamingMessageIdRef.current) {
+      if (messageId) {
         setMessages(prev => prev.map(msg => 
-          msg.id === streamingMessageIdRef.current
+          msg.id === messageId
             ? failMessage(msg, err.message)
             : msg
         ));

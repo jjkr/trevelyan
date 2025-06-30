@@ -7,7 +7,8 @@ import StreamingMessage from './components/StreamingMessage.jsx';
 function App() {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
-  
+  const textareaRef = useRef(null);
+
   // Initialize chat manager with OpenRouter
   const {
     messages,
@@ -27,12 +28,23 @@ function App() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Auto-resize textarea
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight-8}px`; // JJK - subtracting pixels for padding
+    }
+  }, [input]);
+
   const handleSendMessage = async (e) => {
     e.preventDefault();
     if (input.trim() && canSend) {
       const messageText = input;
       setInput('');
       await sendMessage(messageText);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto'; // Reset height after sending
+      }
     }
   };
 
@@ -54,6 +66,7 @@ function App() {
       {/* Header with provider info */}
       <div className="chat-header">
         <div className="provider-info">
+          <img src={logo} alt="Trevelyan" className="header-logo" />
           <span className="provider-name">
             {providerInfo?.displayName || 'OpenRouter'}
           </span>
@@ -78,11 +91,12 @@ function App() {
       <div className="chat-messages">
         {messages.length === 0 && (
           <div className="welcome-message">
-            <h2>Welcome to Trevelyan Chat</h2>
-            <p>Start a conversation with AI using OpenRouter</p>
+            <img src={logo} alt="Trevelyan Logo" className="welcome-logo" />
+            <h2>Trevelyan</h2>
+            <p>Your personal AI assistant.</p>
             {!providerInfo?.validation.isValid && (
               <div className="setup-notice">
-                <p>⚠️ Please add your OpenRouter API key to the .env file:</p>
+                <p>⚠️ To get started, add your OpenRouter API key to the <code>.env</code> file.</p>
                 <code>VITE_OPENROUTER_API_KEY=your_api_key_here</code>
               </div>
             )}
@@ -116,6 +130,7 @@ function App() {
       <form onSubmit={handleSendMessage} className="chat-input-form">
         <div className="input-container">
           <textarea
+            ref={textareaRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
@@ -129,7 +144,6 @@ function App() {
             rows={1}
             style={{
               resize: 'none',
-              minHeight: '40px',
               maxHeight: '120px',
               overflow: 'auto'
             }}

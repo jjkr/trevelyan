@@ -33,6 +33,11 @@ html, body, #root {
   gap: 10px;
 }
 
+.header-logo {
+  height: 24px;
+  width: auto;
+}
+
 .provider-name {
   font-weight: bold;
   color: #ff7b00;
@@ -94,17 +99,23 @@ html, body, #root {
 
 .chat-input-form {
   display: flex;
-  padding-top: 10px;
+  /*padding-top: 10px;*/
   background-color: transparent; /* Ensure transparent background */
 }
 
 .chat-input {
   flex-grow: 1;
-  padding: 10px;
   border: 1px solid rgba(58, 63, 71, 0.95);
   border-radius: 5px;
   background-color: rgba(58, 63, 71, 0.95);
   color: white;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.4;
+  /*margin-top: 10px;
+  padding: 10px;*/
+  min-height: 10px; /* Adjust to match line-height + padding */
+  overflow-y: hidden; /* Hide scrollbar initially */
 }
 
 .chat-input:focus {
@@ -130,8 +141,8 @@ html, body, #root {
 }
 
 .send-button-logo {
-  width: 3.0em;
-  height: 3.0em;
+  width: 2.7em;
+  height: 2.7em;
   object-fit: contain;
 }
 
@@ -140,6 +151,16 @@ html, body, #root {
   text-align: center;
   padding: 40px 20px;
   color: rgba(255, 255, 255, 0.8);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-grow: 1;
+}
+
+.welcome-logo {
+  width: 80px;
+  height: 80px;
 }
 
 .welcome-message h2 {
@@ -263,24 +284,27 @@ html, body, #root {
   align-items: flex-end;
   gap: 10px;
   width: 100%;
+  /*padding: 5px;*/
+  /*border: 1px solid rgba(58, 63, 71, 0.95);
+  border-radius: 5px;*/
+  /*background-color: rgba(58, 63, 71, 0.95);*/
 }
 
 .chat-input {
-  flex-grow: 1;
-  padding: 5px 10px;
-  border: 1px solid rgba(58, 63, 71, 0.95);
-  border-radius: 5px;
+  border: none;
+  /*background-color: transparent;*/
   background-color: rgba(58, 63, 71, 0.95);
   color: white;
   font-family: inherit;
   font-size: 14px;
   line-height: 1.4;
+  padding: 5px;
 }
 
-.chat-input:disabled {
+/*.chat-input:disabled {
   opacity: 0.6;
   cursor: not-allowed;
-}
+}*/
 
 .stop-button {
   padding: 8px 12px;
@@ -302,10 +326,10 @@ html, body, #root {
   background-color: rgba(255, 107, 107, 0.3);
 }
 
-.send-button:disabled {
+/*.send-button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
+}*/
 
 .send-button:disabled:hover {
   background-color: rgba(68, 68, 68, 0.95);
