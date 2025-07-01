@@ -24,7 +24,7 @@ impl WhisperService {
     }
 
     pub async fn initialize(&mut self, app_data_dir: PathBuf) -> Result<(), Box<dyn std::error::Error>> {
-        self.model_path = app_data_dir.join("models").join("ggml-base.en.bin");
+        self.model_path = app_data_dir.join("models").join("ggml-tiny.en.bin");
         
         // Create models directory if it doesn't exist
         let models_dir = self.model_path.parent().unwrap();
@@ -112,9 +112,9 @@ impl WhisperService {
     }
 
     async fn download_model(&self) -> Result<(), Box<dyn std::error::Error>> {
-        let model_url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin";
+        let model_url = "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.en.bin";
         
-        println!("Downloading Whisper base.en model...");
+        println!("Downloading Whisper tiny.en model...");
         
         let response = reqwest::get(model_url).await?;
         let bytes = response.bytes().await?;

@@ -73,7 +73,7 @@ impl AudioProcessor {
                         whisper.add_audio_to_buffer(audio_chunk);
                     }
                     Err(crossbeam_channel::TryRecvError::Empty) => {
-                        thread::sleep(std::time::Duration::from_millis(10));
+                        thread::sleep(std::time::Duration::from_millis(5));
                     }
                     Err(crossbeam_channel::TryRecvError::Disconnected) => {
                         println!("Audio capture disconnected, stopping buffering thread");
