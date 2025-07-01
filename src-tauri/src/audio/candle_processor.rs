@@ -21,32 +21,22 @@ pub struct CandleAudioProcessor {
 impl CandleAudioProcessor {
     /// Create a new audio processor
     pub fn new(app_data_dir: std::path::PathBuf) -> TranscriptionResult<Self> {
-        let audio_capture = Arc::new(Mutex::new(AudioCapture::new()?));
+        info!("🎙️ [CandleAudioProcessor] Creating new audio processor...");
+        info!("🎙️ [CandleAudioProcessor] App data dir: {:?}", app_data_dir);
         
-        // Create transcription service with default config
+        let audio_capture = Arc::new(Mutex::new(AudioCapture::new()?));
+        info!("🎙️ [CandleAudioProcessor] Audio capture created successfully");
+        
+        // Don't create the transcription service yet - defer until needed
+        // This prevents blocking the app startup with Hugging Face Hub initialization
         let config = TranscriptionConfig::default();
+        info!("🎙️ [CandleAudioProcessor] Creating deferred transcription service...");
         let transcription_service = Arc::new(Mutex::new(
-            CandleWhisperService::new(app_data_dir, config)?
+            CandleWhisperService::new_deferred(app_data_dir, config)?
         ));
+        info!("🎙️ [CandleAudioProcessor] Transcription service created (deferred)");
 
-        // Initialize transcription service in a separate thread to avoid blocking
-        let service_clone = Arc::clone(&transcription_service);
-        thread::spawn(move || {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("Failed to create tokio runtime");
-            
-            rt.block_on(async {
-                let mut service = service_clone.lock().unwrap();
-                if let Err(e) = service.initialize().await {
-                    error!("Failed to initialize transcription service: {}", e);
-                } else {
-                    info!("Transcription service initialized successfully");
-                }
-            });
-        });
-
+        info!("🎙️ [CandleAudioProcessor] Audio processor created successfully");
         Ok(Self {
             audio_capture,
             transcription_service,
@@ -165,11 +155,16 @@ impl CandleAudioProcessor {
                 // Process audio chunk
                 let result = rt.block_on(async {
                     let mut service = transcription_service.lock().unwrap();
-                    if service.is_initialized() {
-                        service.process_audio_chunk(&audio_buffer).await
-                    } else {
-                        Ok(None)
+                    
+                    // Ensure service is initialized before processing
+                    if !service.is_initialized() {
+                        if let Err(e) = service.ensure_initialized().await {
+                            error!("Failed to initialize transcription service: {}", e);
+                            return Ok(None);
+                        }
                     }
+                    
+                    service.process_audio_chunk(&audio_buffer).await
                 });
 
                 match result {

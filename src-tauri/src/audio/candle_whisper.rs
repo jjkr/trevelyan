@@ -59,31 +59,73 @@ impl CandleWhisperService {
         })
     }
 
+    /// Create a new transcription service without initializing models
+    /// This prevents blocking the app startup with Hugging Face Hub downloads
+    pub fn new_deferred(cache_dir: PathBuf, config: TranscriptionConfig) -> TranscriptionResult<Self> {
+        info!("🤖 [CandleWhisperService] Creating deferred service...");
+        info!("🤖 [CandleWhisperService] Cache dir: {:?}", cache_dir);
+        info!("🤖 [CandleWhisperService] Config: {:?}", config);
+        
+        let model_manager = ModelManager::new(cache_dir)?;
+        info!("🤖 [CandleWhisperService] Model manager created");
+        
+        let session_id = Uuid::new_v4().to_string();
+        info!("🤖 [CandleWhisperService] Created deferred CandleWhisperService with session: {}", session_id);
+
+        Ok(Self {
+            model_manager,
+            loaded_models: HashMap::new(),
+            config,
+            audio_buffer: Arc::new(Mutex::new(VecDeque::new())),
+            session_id,
+            segments: Vec::new(),
+            is_initialized: false,
+            last_processed_time: 0.0,
+            processing_stats: ProcessingStats::default(),
+        })
+    }
+
+    /// Initialize the service by loading the default model (call this when first needed)
+    pub async fn ensure_initialized(&mut self) -> TranscriptionResult<()> {
+        info!("🤖 [CandleWhisperService] ensure_initialized called");
+        if self.is_initialized {
+            info!("🤖 [CandleWhisperService] Already initialized, skipping");
+            return Ok(());
+        }
+        
+        info!("🤖 [CandleWhisperService] Lazy-initializing CandleWhisperService...");
+        self.initialize().await
+    }
+
     /// Initialize the service by loading the default model
     pub async fn initialize(&mut self) -> TranscriptionResult<()> {
-        info!("Initializing CandleWhisperService...");
+        info!("🤖 [CandleWhisperService] Starting initialization...");
 
         // Load the primary model (small for good balance of speed/accuracy)
+        info!("🤖 [CandleWhisperService] Loading primary model (DistilSmall)...");
         let primary_model = self.model_manager.load_model(ModelVariant::DistilSmall).await?;
-        info!("Primary model loaded: {:?}", primary_model.info());
+        info!("🤖 [CandleWhisperService] Primary model loaded: {:?}", primary_model.info());
 
         // If fast mode is enabled, also load the tiny model for provisional transcription
         if self.config.fast_mode {
+            info!("🤖 [CandleWhisperService] Fast mode enabled, loading tiny model...");
             match self.model_manager.load_model(ModelVariant::DistilTiny).await {
                 Ok(fast_model) => {
-                    info!("Fast model loaded: {:?}", fast_model.info());
+                    info!("🤖 [CandleWhisperService] Fast model loaded: {:?}", fast_model.info());
                     self.loaded_models.insert(ModelVariant::DistilTiny, fast_model);
                 }
                 Err(e) => {
-                    warn!("Failed to load fast model, continuing without: {}", e);
+                    warn!("🤖 [CandleWhisperService] Failed to load fast model, continuing without: {}", e);
                 }
             }
+        } else {
+            info!("🤖 [CandleWhisperService] Fast mode disabled, skipping tiny model");
         }
 
         self.loaded_models.insert(ModelVariant::DistilSmall, primary_model);
         self.is_initialized = true;
 
-        info!("CandleWhisperService initialized successfully");
+        info!("🤖 [CandleWhisperService] CandleWhisperService initialized successfully!");
         Ok(())
     }
 

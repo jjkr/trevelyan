@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import './App.css';
 import logo from './assets/OriginalLogo.png';
 import useChatManager from './hooks/useChatManager.js';
-import useWhisperVoiceInput from './hooks/useWhisperVoiceInput.js';
+import useVoiceInput from './hooks/useVoiceInput.js';
 import StreamingMessage from './components/StreamingMessage.jsx';
 
 function App() {
@@ -38,7 +38,7 @@ function App() {
     stopListening,
     resetTranscript,
     fullTranscript
-  } = useWhisperVoiceInput();
+  } = useVoiceInput();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
