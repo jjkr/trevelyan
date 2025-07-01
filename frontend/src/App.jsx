@@ -9,6 +9,7 @@ function App() {
   const [input, setInput] = useState('');
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
+  const lastProcessedTranscript = useRef('');
 
   // Initialize chat manager with OpenRouter
   const {
@@ -65,20 +66,21 @@ function App() {
       }
     } else {
       // When stopped listening, clean up interim transcript and add final transcript
-      if (transcript) {
+      if (transcript && transcript !== lastProcessedTranscript.current) {
         setInput(prev => {
           // Remove interim transcript indicator and add final transcript
           const baseInput = prev.replace(/\s*\[Speaking...\].*$/, '');
-          const newText = baseInput + (baseInput ? ' ' : '') + transcript;
-          resetTranscript(); // Clear the transcript after adding it
-          return newText;
+          return baseInput + (baseInput ? ' ' : '') + transcript;
         });
+        // Mark this transcript as processed and clear it
+        lastProcessedTranscript.current = transcript;
+        resetTranscript();
       } else {
         // Just remove the interim transcript indicator if no final transcript
         setInput(prev => prev.replace(/\s*\[Speaking...\].*$/, ''));
       }
     }
-  }, [isListening, transcript, interimTranscript, resetTranscript]);
+  }, [isListening, transcript, interimTranscript]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
@@ -107,6 +109,8 @@ function App() {
     if (isListening) {
       stopListening();
     } else {
+      // Reset tracking when starting new recording
+      lastProcessedTranscript.current = '';
       startListening();
     }
   };

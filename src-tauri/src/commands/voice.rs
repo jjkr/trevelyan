@@ -7,36 +7,21 @@ pub struct VoiceState {
 }
 
 impl VoiceState {
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
-        let processor = Arc::new(Mutex::new(AudioProcessor::new()?));
+    pub fn new(app_handle: AppHandle) -> Result<Self, Box<dyn std::error::Error>> {
+        let app_data_dir = app_handle
+            .path()
+            .app_data_dir()
+            .expect("Failed to get app data directory");
+
+        let processor = Arc::new(Mutex::new(AudioProcessor::new(app_data_dir)?));
         Ok(Self { processor })
     }
 }
 
 #[tauri::command]
-pub async fn initialize_whisper(
-    app_handle: AppHandle,
-    state: State<'_, VoiceState>,
-) -> Result<String, String> {
-    let app_data_dir = app_handle
-        .path()
-        .app_data_dir()
-        .map_err(|e| format!("Failed to get app data directory: {}", e))?;
-
-    // Clone the processor Arc to avoid holding the lock across await
-    let processor = Arc::clone(&state.processor);
-    
-    // Use spawn_blocking to handle the async initialization
-    tokio::task::spawn_blocking(move || {
-        let mut proc = processor.lock().unwrap();
-        // We need to use a runtime for the async call
-        let rt = tokio::runtime::Handle::current();
-        rt.block_on(proc.initialize(app_data_dir))
-    }).await
-    .map_err(|e| format!("Task join error: {}", e))?
-    .map_err(|e| format!("Failed to initialize Whisper: {}", e))?;
-
-    Ok("Whisper initialized successfully".to_string())
+pub async fn ensure_whisper_initialized(state: State<'_, VoiceState>) -> Result<bool, String> {
+    let processor = state.processor.lock().unwrap();
+    Ok(processor.is_whisper_initialized())
 }
 
 #[tauri::command]
@@ -47,7 +32,7 @@ pub async fn start_realtime_recording(
     let mut processor = state.processor.lock().unwrap();
     
     if !processor.is_whisper_initialized() {
-        return Err("Whisper not initialized. Please call initialize_whisper first.".to_string());
+        return Err("Whisper not initialized. Please wait for initialization to complete.".to_string());
     }
 
     processor

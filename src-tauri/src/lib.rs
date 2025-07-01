@@ -6,7 +6,7 @@ use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 mod audio;
 mod commands;
 
-use commands::{VoiceState, initialize_whisper, start_realtime_recording, stop_recording, is_recording, is_whisper_ready, get_whisper_status};
+use commands::{VoiceState, ensure_whisper_initialized, start_realtime_recording, stop_recording, is_recording, is_whisper_ready, get_whisper_status};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -15,9 +15,8 @@ pub fn run() {
     manager.register(hotkey).unwrap();
 
     tauri::Builder::default()
-        .manage(VoiceState::new().expect("Failed to initialize voice state"))
         .invoke_handler(tauri::generate_handler![
-            initialize_whisper,
+            ensure_whisper_initialized,
             start_realtime_recording,
             stop_recording,
             is_recording,
@@ -25,6 +24,7 @@ pub fn run() {
             get_whisper_status
         ])
         .setup(move |app| {
+            app.manage(VoiceState::new(app.handle().clone()).expect("Failed to initialize voice state"));
             let main_window = app.get_webview_window("main").unwrap();
 
             if let Some(monitor) = main_window.current_monitor().unwrap() {

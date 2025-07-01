@@ -7,37 +7,102 @@ pub struct AudioProcessor {
     audio_capture: Arc<Mutex<AudioCapture>>,
     whisper_service: Arc<Mutex<WhisperService>>,
     is_processing: Arc<Mutex<bool>>,
+    is_capturing: Arc<Mutex<bool>>,
     processing_handle: Option<thread::JoinHandle<()>>,
+    capture_handle: Option<thread::JoinHandle<()>>,
 }
 
 impl AudioProcessor {
-    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub fn new(app_data_dir: std::path::PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
         let audio_capture = Arc::new(Mutex::new(AudioCapture::new()?));
         let whisper_service = Arc::new(Mutex::new(WhisperService::new()));
-        
+
+        // Initialize Whisper service in a separate thread to avoid blocking
+        let whisper_service_clone = Arc::clone(&whisper_service);
+        thread::spawn(move || {
+            let mut whisper = whisper_service_clone.lock().unwrap();
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .unwrap();
+            rt.block_on(whisper.initialize(app_data_dir))
+                .expect("Failed to initialize whisper");
+        });
+
         Ok(Self {
             audio_capture,
             whisper_service,
             is_processing: Arc::new(Mutex::new(false)),
+            is_capturing: Arc::new(Mutex::new(false)),
             processing_handle: None,
+            capture_handle: None,
         })
     }
 
-    pub async fn initialize(&mut self, app_data_dir: std::path::PathBuf) -> Result<(), String> {
-        // Clone the whisper service to avoid holding the lock across await
-        let whisper_service = Arc::clone(&self.whisper_service);
-        
-        // Initialize in a blocking task to avoid Send issues
-        let result = tokio::task::spawn_blocking(move || {
-            let mut whisper = whisper_service.lock().unwrap();
-            // We need to use a runtime for the async call
-            let rt = tokio::runtime::Handle::current();
-            rt.block_on(whisper.initialize(app_data_dir))
-                .map_err(|e| e.to_string())
-        }).await
-        .map_err(|e| e.to_string())?;
-        
-        result?;
+    pub fn start_audio_capture(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        if *self.is_capturing.lock().unwrap() {
+            return Ok(()); // Already capturing
+        }
+
+        *self.is_capturing.lock().unwrap() = true;
+
+        // Start audio capture and buffering
+        let audio_capture_clone = Arc::clone(&self.audio_capture);
+        let whisper_service_clone = Arc::clone(&self.whisper_service);
+        let is_capturing = Arc::clone(&self.is_capturing);
+
+        let handle = thread::spawn(move || {
+            let audio_receiver = {
+                let mut capture = audio_capture_clone.lock().unwrap();
+                match capture.start_recording() {
+                    Ok(receiver) => receiver,
+                    Err(e) => {
+                        eprintln!("Failed to start audio capture: {}", e);
+                        *is_capturing.lock().unwrap() = false;
+                        return;
+                    }
+                }
+            };
+
+            println!("Audio capture thread started");
+
+            while *is_capturing.lock().unwrap() {
+                match audio_receiver.try_recv() {
+                    Ok(audio_chunk) => {
+                        let whisper = whisper_service_clone.lock().unwrap();
+                        whisper.add_audio_to_buffer(audio_chunk);
+                    }
+                    Err(crossbeam_channel::TryRecvError::Empty) => {
+                        thread::sleep(std::time::Duration::from_millis(10));
+                    }
+                    Err(crossbeam_channel::TryRecvError::Disconnected) => {
+                        println!("Audio capture disconnected, stopping buffering thread");
+                        break;
+                    }
+                }
+            }
+
+            // Stop audio capture when exiting
+            {
+                let mut capture = audio_capture_clone.lock().unwrap();
+                let _ = capture.stop_recording();
+            }
+
+            println!("Audio capture thread ended");
+        });
+
+        self.capture_handle = Some(handle);
+        Ok(())
+    }
+
+    pub fn stop_audio_capture(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        *self.is_capturing.lock().unwrap() = false;
+
+        // Wait for capture thread to finish
+        if let Some(handle) = self.capture_handle.take() {
+            handle.join().expect("Failed to join capture thread");
+        }
+
         Ok(())
     }
 
@@ -46,11 +111,8 @@ impl AudioProcessor {
             return Err("Already processing".into());
         }
 
-        // Start audio capture
-        let audio_receiver = {
-            let mut capture = self.audio_capture.lock().unwrap();
-            capture.start_recording()?
-        };
+        // Start audio capture if not already started
+        self.start_audio_capture()?;
 
         *self.is_processing.lock().unwrap() = true;
 
@@ -62,88 +124,55 @@ impl AudioProcessor {
         // Spawn processing thread
         let handle = thread::spawn(move || {
             let mut accumulated_text = String::new();
-            let mut chunk_count = 0;
             let mut last_transcription = String::new();
-            let mut transcription_count = 0;
-            let mut audio_buffer = Vec::new();
 
             println!("Audio processing thread started");
 
             while *is_processing.lock().unwrap() {
-                match audio_receiver.try_recv() {
-                    Ok(audio_chunk) => {
-                        chunk_count += 1;
-                        println!("Received audio chunk #{}: {} samples", chunk_count, audio_chunk.len());
-                        
-                        // Add audio to buffer for context
-                        {
-                            let whisper = whisper_service.lock().unwrap();
-                            whisper.add_audio_to_buffer(audio_chunk.clone());
-                        }
+                let audio_buffer = {
+                    let whisper = whisper_service.lock().unwrap();
+                    whisper.get_context_audio(5.0) // Get last 5 seconds of audio
+                };
 
-                        // Accumulate audio chunks and process more frequently for lower latency
-                        audio_buffer.extend_from_slice(&audio_chunk);
-                        
-                        // Process every 2 chunks (about 2 seconds of audio) for faster response
-                        // GPU acceleration should handle the increased frequency better
-                        if chunk_count % 2 == 0 {
-                            println!("Processing accumulated audio: {} samples", audio_buffer.len());
-                            
-                            if let Ok(whisper) = whisper_service.lock() {
-                                if whisper.is_initialized() {
-                                    // Just transcribe the current audio buffer without context for now
-                                    match whisper.transcribe_chunk(&audio_buffer) {
-                                        Ok(text) => {
-                                            transcription_count += 1;
-                                            println!("Transcription #{}: '{}'", transcription_count, text);
-                                            
-                                            if !text.is_empty() {
-                                                // Check for duplicates and similar text
-                                                let is_duplicate = text == last_transcription || 
-                                                    (text.len() > 3 && last_transcription.contains(&text)) ||
-                                                    (last_transcription.len() > 3 && text.contains(&last_transcription));
-                                                
-                                                if !is_duplicate {
-                                                    println!("Emitting new transcription: '{}'", text);
-                                                    // Emit partial transcription event
-                                                    let _ = app_handle_clone.emit("transcription_partial", &text);
-                                                    
-                                                    // Update accumulated text
-                                                    if !accumulated_text.contains(&text) {
-                                                        if !accumulated_text.is_empty() {
-                                                            accumulated_text.push(' ');
-                                                        }
-                                                        accumulated_text.push_str(&text);
-                                                    }
-                                                    
-                                                    last_transcription = text;
-                                                } else {
-                                                    println!("Skipping duplicate transcription: '{}'", text);
-                                                }
+                if audio_buffer.is_empty() {
+                    thread::sleep(std::time::Duration::from_millis(100));
+                    continue;
+                }
+                
+                if let Ok(whisper) = whisper_service.lock() {
+                    if whisper.is_initialized() {
+                        match whisper.transcribe_chunk(&audio_buffer) {
+                            Ok(text) => {
+                                if !text.is_empty() {
+                                    let is_duplicate = text == last_transcription || 
+                                        (text.len() > 3 && last_transcription.contains(&text)) ||
+                                        (last_transcription.len() > 3 && text.contains(&last_transcription));
+                                    
+                                    if !is_duplicate {
+                                        println!("Emitting new transcription: '{}'", text);
+                                        let _ = app_handle_clone.emit("transcription_partial", &text);
+                                        
+                                        if !accumulated_text.contains(&text) {
+                                            if !accumulated_text.is_empty() {
+                                                accumulated_text.push(' ');
                                             }
+                                            accumulated_text.push_str(&text);
                                         }
-                                        Err(e) => {
-                                            eprintln!("Transcription error: {}", e);
-                                            let _ = app_handle_clone.emit("transcription_error", format!("Error: {}", e));
-                                        }
+                                        
+                                        last_transcription = text;
                                     }
                                 }
                             }
-                            
-                            // Clear the audio buffer after processing
-                            audio_buffer.clear();
+                            Err(e) => {
+                                eprintln!("Transcription error: {}", e);
+                                let _ = app_handle_clone.emit("transcription_error", format!("Error: {}", e));
+                            }
                         }
                     }
-                    Err(crossbeam_channel::TryRecvError::Empty) => {
-                        // No audio data available, sleep briefly
-                        thread::sleep(std::time::Duration::from_millis(50));
-                    }
-                    Err(crossbeam_channel::TryRecvError::Disconnected) => {
-                        // Audio capture stopped
-                        println!("Audio capture disconnected, stopping processing");
-                        break;
-                    }
                 }
+                
+                // Sleep for a bit to avoid pegging the CPU
+                thread::sleep(std::time::Duration::from_millis(500));
             }
 
             // Emit final transcription when processing stops
@@ -152,7 +181,7 @@ impl AudioProcessor {
                 let _ = app_handle_clone.emit("transcription_final", accumulated_text.trim());
             }
             
-            println!("Audio processing thread ended. Processed {} chunks, {} transcriptions", chunk_count, transcription_count);
+            println!("Audio processing thread ended.");
         });
 
         self.processing_handle = Some(handle);
@@ -166,16 +195,13 @@ impl AudioProcessor {
     pub fn stop_processing(&mut self, app_handle: AppHandle) -> Result<String, Box<dyn std::error::Error>> {
         *self.is_processing.lock().unwrap() = false;
 
-        // Stop audio capture
-        {
-            let mut capture = self.audio_capture.lock().unwrap();
-            capture.stop_recording()?;
-        }
-
         // Wait for processing thread to finish
         if let Some(handle) = self.processing_handle.take() {
-            let _ = handle.join();
+            handle.join().expect("Failed to join processing thread");
         }
+
+        // Stop audio capture
+        self.stop_audio_capture()?;
 
         // Clear audio buffer
         {
@@ -201,8 +227,15 @@ impl AudioProcessor {
 
 impl Drop for AudioProcessor {
     fn drop(&mut self) {
+        // Stop both processing and capturing
         *self.is_processing.lock().unwrap() = false;
+        *self.is_capturing.lock().unwrap() = false;
+        
+        // Wait for both threads to finish
         if let Some(handle) = self.processing_handle.take() {
+            let _ = handle.join();
+        }
+        if let Some(handle) = self.capture_handle.take() {
             let _ = handle.join();
         }
     }

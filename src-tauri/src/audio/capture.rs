@@ -88,8 +88,8 @@ impl AudioCapture {
         
         println!("Audio capture config: channels={}, sample_rate={}", channels, sample_rate);
         
-        // Buffer for 1 second of audio at 16kHz
-        let chunk_size = sample_rate as usize;
+        // Buffer for 0.1 second of audio at 16kHz
+        let chunk_size = (sample_rate as f32 * 0.2) as usize;
         let buffer = Arc::new(Mutex::new(Vec::with_capacity(chunk_size)));
         let buffer_clone = Arc::clone(&buffer);
         let is_recording_clone = Arc::clone(&is_recording);

@@ -23,10 +23,16 @@ const useWhisperVoiceInput = () => {
       setError(null);
 
       try {
-        await invoke('initialize_whisper');
+        const isInitialized = await invoke('ensure_whisper_initialized');
         if (!isMounted) return;
 
-        console.log('Whisper initialized');
+        if (!isInitialized) {
+          // Wait for initialization
+          // This could be improved with a subscription to an initialization event
+          await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        console.log('Whisper is ready');
         setIsSupported(true);
 
         // Set up listeners after successful initialization
@@ -37,7 +43,7 @@ const useWhisperVoiceInput = () => {
         unlistenFuncs.push(unlistenPartial);
 
         const unlistenFinal = await listen('transcription_final', (event) => {
-          setTranscript(prev => `${prev}${prev ? ' ' : ''}${event.payload}`);
+          setTranscript(event.payload);
           setInterimTranscript('');
           setIsProcessing(false);
         });
@@ -67,8 +73,8 @@ const useWhisperVoiceInput = () => {
 
       } catch (err) {
         if (isMounted) {
-          console.error('Failed to initialize Whisper:', err);
-          setError(`Failed to initialize Whisper: ${err}`);
+          console.error('Failed to setup Whisper:', err);
+          setError(`Failed to setup Whisper: ${err}`);
           setIsSupported(false);
         }
       } finally {

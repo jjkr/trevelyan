@@ -1,4 +1,4 @@
-use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters};
+use whisper_rs::{FullParams, SamplingStrategy, WhisperContext, WhisperContextParameters, WhisperState};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 use tokio::fs;
@@ -6,6 +6,7 @@ use std::collections::VecDeque;
 
 pub struct WhisperService {
     context: Option<WhisperContext>,
+    state: Option<Arc<Mutex<WhisperState>>>,
     model_path: PathBuf,
     is_initialized: bool,
     audio_buffer: Arc<Mutex<VecDeque<f32>>>,
@@ -15,6 +16,7 @@ impl WhisperService {
     pub fn new() -> Self {
         Self {
             context: None,
+            state: None,
             model_path: PathBuf::new(),
             is_initialized: false,
             audio_buffer: Arc::new(Mutex::new(VecDeque::new())),
@@ -33,19 +35,26 @@ impl WhisperService {
             self.download_model().await?;
         }
 
-        // Initialize Whisper context with optimized CPU processing
+        // Initialize Whisper context with optimized GPU processing
         let mut ctx_params = WhisperContextParameters::default();
         
-        // Use optimized CPU processing (avoids Metal shader issues)
+        // Use optimized GPU processing (uses Metal for fast inference on macOS)
         ctx_params.use_gpu(true);
         
         println!("Initializing Whisper with optimized CPU processing...");
-        self.context = Some(WhisperContext::new_with_params(
+        let context = WhisperContext::new_with_params(
             self.model_path.to_str().unwrap(),
             ctx_params,
-        )?);
+        )?;
+        // This is unsafe, but it's the only way to store the state in the struct
+        // The state is derived from the context, and the context is stored in the same struct
+        // so the state will be valid for the lifetime of the context.
+        let context_ptr: *const WhisperContext = &context;
+        let state = unsafe { (*context_ptr).create_state()? };
+        self.context = Some(context);
+        self.state = Some(Arc::new(Mutex::new(state)));
 
-        println!("Whisper context initialized successfully with optimized CPU processing");
+        println!("Whisper context and state initialized successfully with optimized CPU processing");
         self.is_initialized = true;
         Ok(())
     }
@@ -59,81 +68,37 @@ impl WhisperService {
             return Err("Whisper service not initialized".into());
         }
 
-        // Skip if audio data is too short (less than 0.5 seconds)
-        if audio_data.len() < 8000 {
-            println!("Skipping transcription: audio too short ({} samples)", audio_data.len());
-            return Ok(String::new());
-        }
-
-        // Analyze audio characteristics for debugging
         let max_amplitude = audio_data.iter().map(|&x| x.abs()).fold(0.0, f32::max);
-        let avg_amplitude = audio_data.iter().map(|&x| x.abs()).sum::<f32>() / audio_data.len() as f32;
-        let rms = (audio_data.iter().map(|&x| x * x).sum::<f32>() / audio_data.len() as f32).sqrt();
-        
-        println!("Transcribing audio chunk: {} samples, max_amp: {:.4}, avg_amp: {:.4}, rms: {:.4}", 
-                 audio_data.len(), max_amplitude, avg_amplitude, rms);
-        
-        // Check if audio is too quiet (might be silence or very low background noise)
         if max_amplitude < 0.01 {
-            println!("Audio appears to be silence or very quiet (max amplitude: {:.4})", max_amplitude);
             return Ok(String::new());
         }
 
-        let context = self.context.as_ref().unwrap();
+        let mut state = self.state.as_ref().unwrap().lock().unwrap();
         
-        // Create parameters for transcription optimized for real-time processing
         let mut params = FullParams::new(SamplingStrategy::Greedy { best_of: 1 });
-        
-        // Configure for optimized CPU processing
-        params.set_n_threads(4); // Use multiple threads for CPU processing
-        params.set_translate(false); // Don't translate, just transcribe
-        params.set_language(Some("en")); // English only for base.en model
+        params.set_n_threads(4);
+        params.set_translate(false);
+        params.set_language(Some("en"));
         params.set_print_special(false);
         params.set_print_progress(false);
         params.set_print_realtime(false);
         params.set_print_timestamps(false);
+        params.set_temperature(0.0);
+        params.set_max_len(0);
+        params.set_token_timestamps(false);
+        params.set_suppress_blank(true);
+        params.set_suppress_nst(true);
         
-        // Real-time optimization settings
-        params.set_temperature(0.0); // Deterministic output for consistency
-        params.set_max_len(0); // No length limit for real-time
-        params.set_token_timestamps(false); // Disable for speed
-        params.set_suppress_blank(true); // Skip blank outputs
-        params.set_suppress_nst(true); // Skip non-speech for speed
-        
-        // Process the audio with performance timing
-        let start_time = std::time::Instant::now();
-        
-        println!("Creating whisper state for transcription...");
-        let state_start = std::time::Instant::now();
-        let mut state = context.create_state()?;
-        let state_duration = state_start.elapsed();
-        
-        println!("Running whisper transcription with optimized CPU processing...");
-        let transcription_start = std::time::Instant::now();
         state.full(params, audio_data)?;
-        let transcription_duration = transcription_start.elapsed();
         
-        // Extract transcription
-        let extraction_start = std::time::Instant::now();
         let num_segments = state.full_n_segments()?;
-        let extraction_duration = extraction_start.elapsed();
-        
-        let total_duration = start_time.elapsed();
-        println!("Transcription performance: total={:.2}ms, state_creation={:.2}ms, transcription={:.2}ms, extraction={:.2}ms, segments={}",
-                 total_duration.as_millis(), state_duration.as_millis(), 
-                 transcription_duration.as_millis(), extraction_duration.as_millis(), num_segments);
-        
         let mut result = String::new();
-        
         for i in 0..num_segments {
             let segment = state.full_get_segment_text(i)?;
             result.push_str(&segment);
         }
 
-        let final_result = result.trim().to_string();
-        println!("Final transcription result: '{}'", final_result);
-        
-        Ok(final_result)
+        Ok(result.trim().to_string())
     }
 
     pub fn transcribe_with_context(&self, audio_data: &[f32], _context_audio: &[f32]) -> Result<String, Box<dyn std::error::Error>> {
