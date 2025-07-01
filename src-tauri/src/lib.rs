@@ -6,7 +6,13 @@ use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 mod audio;
 mod commands;
 
-use commands::{VoiceState, ensure_whisper_initialized, start_realtime_recording, stop_recording, is_recording, is_whisper_ready, get_whisper_status};
+use commands::{
+    VoiceState, ensure_whisper_initialized, start_realtime_recording, stop_recording, 
+    is_recording, is_whisper_ready, get_whisper_status,
+    CandleVoiceState, ensure_candle_initialized, start_candle_recording, stop_candle_recording,
+    is_candle_recording, is_candle_ready, get_candle_status, update_transcription_config,
+    get_session_info, get_model_status, clear_model_cache, test_transcription, get_transcription_stats
+};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -16,15 +22,31 @@ pub fn run() {
 
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
+            // Original whisper-rs commands (for backward compatibility)
             ensure_whisper_initialized,
             start_realtime_recording,
             stop_recording,
             is_recording,
             is_whisper_ready,
-            get_whisper_status
+            get_whisper_status,
+            // New Candle + Distil-Whisper commands
+            ensure_candle_initialized,
+            start_candle_recording,
+            stop_candle_recording,
+            is_candle_recording,
+            is_candle_ready,
+            get_candle_status,
+            update_transcription_config,
+            get_session_info,
+            get_model_status,
+            clear_model_cache,
+            test_transcription,
+            get_transcription_stats
         ])
         .setup(move |app| {
+            // Initialize both old and new voice states for compatibility
             app.manage(VoiceState::new(app.handle().clone()).expect("Failed to initialize voice state"));
+            app.manage(CandleVoiceState::new(app.handle().clone()).expect("Failed to initialize candle voice state"));
             let main_window = app.get_webview_window("main").unwrap();
 
             if let Some(monitor) = main_window.current_monitor().unwrap() {

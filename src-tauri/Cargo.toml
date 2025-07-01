@@ -28,9 +28,23 @@ tokio = { version = "1", features = ["full", "rt-multi-thread"] }
 window-vibrancy = "0.5.0"
 cocoa = "0.24.0"
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel" }
-whisper-rs = { version = "0.14.3", features = ["metal"] }
+# Candle ecosystem for Distil-Whisper
+candle-core = { version = "0.9", features = ["metal"] }
+candle-nn = "0.9"
+candle-transformers = "0.9"
+hf-hub = { version = "0.3", features = ["tokio"] }
+whisper-rs = "0.12"
+tokenizers = "0.19"
+anyhow = "1.0"
+tracing = "0.1"
+
+# Audio processing (keep existing)
 cpal = "0.15"
 hound = "3.5"
 crossbeam-channel = "0.5"
 ringbuf = "0.3"
 reqwest = { version = "0.11", features = ["stream"] }
+
+# Additional utilities
+uuid = { version = "1.0", features = ["v4"] }
+thiserror = "1.0"

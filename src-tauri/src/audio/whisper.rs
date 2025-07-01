@@ -87,7 +87,7 @@ impl WhisperService {
         params.set_max_len(0);
         params.set_token_timestamps(false);
         params.set_suppress_blank(true);
-        params.set_suppress_nst(true);
+        params.set_suppress_non_speech_tokens(true);
         
         state.full(params, audio_data)?;
         
