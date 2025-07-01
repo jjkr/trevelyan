@@ -11,116 +11,83 @@ const useWhisperVoiceInput = () => {
   const [isInitializing, setIsInitializing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   
-  const unlistenRefs = useRef([]);
-  const initializationPromise = useRef(null);
+  const unlistenFunctions = useRef([]);
 
-  // Initialize Whisper on component mount
+  // Initialize Whisper and set up event listeners
   useEffect(() => {
-    const initializeWhisper = async () => {
-      if (initializationPromise.current) {
-        return initializationPromise.current;
-      }
+    let isMounted = true;
+    const unlistenFuncs = [];
 
+    const setup = async () => {
       setIsInitializing(true);
       setError(null);
 
-      initializationPromise.current = (async () => {
-        try {
-          const result = await invoke('initialize_whisper');
-          console.log('Whisper initialized:', result);
-          setIsSupported(true);
-          setError(null);
-          return true;
-        } catch (err) {
-          console.error('Failed to initialize Whisper:', err);
-          setError(`Failed to initialize Whisper: ${err}`);
-          setIsSupported(false);
-          return false;
-        } finally {
-          setIsInitializing(false);
-        }
-      })();
-
-      return initializationPromise.current;
-    };
-
-    initializeWhisper();
-  }, []);
-
-  // Set up event listeners
-  useEffect(() => {
-    const setupListeners = async () => {
       try {
-        // Listen for partial transcription updates
+        await invoke('initialize_whisper');
+        if (!isMounted) return;
+
+        console.log('Whisper initialized');
+        setIsSupported(true);
+
+        // Set up listeners after successful initialization
         const unlistenPartial = await listen('transcription_partial', (event) => {
-          console.log('🎤 Partial transcription received:', event.payload);
-          console.log('🎤 Current interim transcript:', interimTranscript);
           setInterimTranscript(event.payload);
           setIsProcessing(true);
         });
+        unlistenFuncs.push(unlistenPartial);
 
-        // Listen for final transcription results
         const unlistenFinal = await listen('transcription_final', (event) => {
-          console.log('🎤 Final transcription received:', event.payload);
-          console.log('🎤 Current transcript before update:', transcript);
-          setTranscript(prev => {
-            const newText = prev + (prev ? ' ' : '') + event.payload;
-            console.log('🎤 Updated transcript:', newText);
-            return newText;
-          });
+          setTranscript(prev => `${prev}${prev ? ' ' : ''}${event.payload}`);
           setInterimTranscript('');
           setIsProcessing(false);
         });
+        unlistenFuncs.push(unlistenFinal);
 
-        // Listen for recording started
         const unlistenStarted = await listen('recording_started', () => {
-          console.log('Recording started');
           setIsListening(true);
           setError(null);
         });
+        unlistenFuncs.push(unlistenStarted);
 
-        // Listen for recording stopped
         const unlistenStopped = await listen('recording_stopped', () => {
-          console.log('Recording stopped');
           setIsListening(false);
           setIsProcessing(false);
         });
+        unlistenFuncs.push(unlistenStopped);
 
-        // Listen for transcription errors
         const unlistenError = await listen('transcription_error', (event) => {
           console.error('Transcription error:', event.payload);
           setError(event.payload);
           setIsListening(false);
           setIsProcessing(false);
         });
-
-        // Store unlisten functions
-        unlistenRefs.current = [
-          unlistenPartial,
-          unlistenFinal,
-          unlistenStarted,
-          unlistenStopped,
-          unlistenError
-        ];
+        unlistenFuncs.push(unlistenError);
+        
+        unlistenFunctions.current = unlistenFuncs;
 
       } catch (err) {
-        console.error('Failed to set up event listeners:', err);
-        setError(`Failed to set up event listeners: ${err}`);
+        if (isMounted) {
+          console.error('Failed to initialize Whisper:', err);
+          setError(`Failed to initialize Whisper: ${err}`);
+          setIsSupported(false);
+        }
+      } finally {
+        if (isMounted) {
+          setIsInitializing(false);
+        }
       }
     };
 
-    setupListeners();
+    setup();
 
     // Cleanup function
     return () => {
-      unlistenRefs.current.forEach(unlisten => {
-        if (typeof unlisten === 'function') {
-          unlisten();
-        }
-      });
-      unlistenRefs.current = [];
+      isMounted = false;
+      console.log('Cleaning up Whisper listeners');
+      unlistenFunctions.current.forEach(unlisten => unlisten());
+      unlistenFunctions.current = [];
     };
-  }, []);
+  }, []); // Empty dependency array ensures this runs only once on mount
 
   const startListening = useCallback(async () => {
     if (!isSupported) {
