@@ -27,3 +27,16 @@ global-hotkey = "0.5.0"
 tokio = { version = "1", features = ["full", "rt-multi-thread"] }
 cocoa = "0.24.0"
 tauri-nspanel = { git = "https://github.com/ahkohd/tauri-nspanel" }
+
+# Audio processing
+cpal = "0.16"
+symphonia = { version = "0.5", features = ["wav", "mp3"] }
+
+# Candle ML framework
+candle-core = "0.9.1"
+candle-nn = "0.9.1"
+candle-transformers = "0.9.1"
+hf-hub = "0.3"
+tokenizers = "0.19"
+byteorder = "1.5"
+anyhow = "1.0"
