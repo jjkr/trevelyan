@@ -1,6 +1,7 @@
 use global_hotkey::{hotkey::{Code, HotKey, Modifiers}, GlobalHotKeyManager, GlobalHotKeyEvent};
 use tauri::Manager;
 use std::sync::{Arc, Mutex};
+use log::info;
 
 mod audio_capture;
 mod whisper_engine;
@@ -30,7 +31,7 @@ pub fn run() {
             is_voice_recording,
         ])
         .setup(move |app| {
-            println!("🚀 [lib.rs] Getting main window...");
+            info!("Getting main window...");
             let main_window = app.get_webview_window("main").unwrap();
 
             if let Some(monitor) = main_window.current_monitor().unwrap() {
@@ -52,13 +53,15 @@ pub fn run() {
             // apply_vibrancy(&main_window, NSVisualEffectMaterial::UnderWindowBackground, None, None)
             //     .expect("Unsupported platform! 'apply_vibrancy' is only supported on macOS");
 
-            if cfg!(debug_assertions) {
-                app.handle().plugin(
-                    tauri_plugin_log::Builder::default()
-                        .level(log::LevelFilter::Info)
-                        .build(),
-                )?;
-            }
+            app.handle().plugin(
+                tauri_plugin_log::Builder::default()
+                    .level(if cfg!(debug_assertions) {
+                        log::LevelFilter::Debug
+                    } else {
+                        log::LevelFilter::Info
+                    })
+                    .build(),
+            )?;
 
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);

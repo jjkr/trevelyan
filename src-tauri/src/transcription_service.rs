@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter};
 use tokio::time::interval;
+use log::{info, debug, error};
 
 #[derive(Clone, serde::Serialize)]
 struct TranscriptionEvent {
@@ -38,24 +39,24 @@ impl TranscriptionService {
     }
 
     pub async fn initialize(&mut self) -> Result<()> {
-        println!("🔧 [transcription_service] Starting transcription service initialization...");
+        info!("Starting transcription service initialization...");
 
         // Initialize audio capture
-        println!("🔧 [transcription_service] Creating AudioCapture...");
+        debug!("Creating AudioCapture...");
         let audio_capture = AudioCapture::new()?;
         self.audio_capture = Some(audio_capture);
-        println!("✅ [transcription_service] AudioCapture created successfully");
+        debug!("AudioCapture created successfully");
 
         // Initialize Whisper engine
-        println!("🔧 [transcription_service] Creating WhisperEngine...");
+        debug!("Creating WhisperEngine...");
         let whisper_engine = WhisperEngine::new().await?;
         {
             let mut engine_guard = self.whisper_engine.lock().unwrap();
             *engine_guard = Some(whisper_engine);
         }
-        println!("✅ [transcription_service] WhisperEngine created successfully");
+        debug!("WhisperEngine created successfully");
 
-        println!("✅ [transcription_service] Transcription service initialized successfully");
+        info!("Transcription service initialized successfully");
         Ok(())
     }
 
@@ -100,6 +101,7 @@ impl TranscriptionService {
         let whisper_engine = self.whisper_engine.clone();
         let app_handle = self.app_handle.clone();
         let is_running = self.is_running.clone();
+        let audio_capture = self.audio_capture.clone();
 
         tokio::spawn(async move {
             let mut interval = interval(Duration::from_millis(500)); // Run every 500ms
@@ -109,11 +111,16 @@ impl TranscriptionService {
             while *is_running.lock().unwrap() {
                 interval.tick().await;
 
-                // Create a temporary AudioCapture to access global buffer
-                let temp_capture = AudioCapture;
-                let audio_data = temp_capture.get_buffer_data();
-                let audio_level = temp_capture.get_audio_level();
-                let is_recording = temp_capture.is_recording();
+                // Access audio data from the AudioCapture instance
+                let (audio_data, audio_level, is_recording) = if let Some(ref capture) = audio_capture {
+                    (
+                        capture.get_buffer_data(),
+                        capture.get_audio_level(),
+                        capture.is_recording(),
+                    )
+                } else {
+                    continue;
+                };
 
                 // Emit voice status
                 let _ = app_handle.emit("voice-status", VoiceStatusEvent {
@@ -150,7 +157,7 @@ impl TranscriptionService {
                             }
                         }
                         Err(e) => {
-                            eprintln!("Transcription error: {}", e);
+                            error!("Transcription error: {}", e);
                         }
                     }
                 }
