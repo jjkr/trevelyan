@@ -3,7 +3,6 @@ import './App.css';
 import logo from './assets/OriginalLogo.png';
 import useChatManager from './hooks/useChatManager.js';
 import StreamingMessage from './components/StreamingMessage.jsx';
-import VoiceButton from './components/VoiceButton.jsx';
 
 function App() {
   const [input, setInput] = useState('');
@@ -94,20 +93,6 @@ function App() {
     retryLastMessage();
   };
 
-  // Handle voice transcription
-  const handleVoiceTranscription = (transcribedText) => {
-    if (transcribedText.trim()) {
-      setInput(prevInput => {
-        const newInput = prevInput ? `${prevInput} ${transcribedText}` : transcribedText;
-        return newInput;
-      });
-      
-      // Focus the textarea after transcription
-      if (textareaRef.current) {
-        textareaRef.current.focus();
-      }
-    }
-  };
 
   const providerInfo = getProviderInfo();
 
@@ -200,12 +185,6 @@ function App() {
           />
           
           <div className="input-buttons">
-            {/* Voice input button */}
-            <VoiceButton 
-              onTranscription={handleVoiceTranscription}
-              disabled={!canSend || isStreaming}
-            />
-            
             {/* Send/Stop button */}
             {isStreaming ? (
               <button 

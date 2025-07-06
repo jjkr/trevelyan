@@ -1,20 +1,6 @@
 use global_hotkey::{hotkey::{Code, HotKey, Modifiers}, GlobalHotKeyManager, GlobalHotKeyEvent, HotKeyState};
 use tauri::Manager;
-use std::sync::{Arc, Mutex};
 use log::info;
-
-mod audio_capture;
-mod whisper_engine;
-mod transcription_service;
-mod voice_commands;
-
-use voice_commands::{
-    TranscriptionServiceState,
-    initialize_voice_service,
-    start_voice_recording,
-    stop_voice_recording,
-    is_voice_recording,
-};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -23,13 +9,6 @@ pub fn run() {
     manager.register(hotkey).unwrap();
 
     tauri::Builder::default()
-        .manage(Arc::new(Mutex::new(None)) as TranscriptionServiceState)
-        .invoke_handler(tauri::generate_handler![
-            initialize_voice_service,
-            start_voice_recording,
-            stop_voice_recording,
-            is_voice_recording,
-        ])
         .setup(move |app| {
             info!("Getting main window...");
             let main_window = app.get_webview_window("main").unwrap();
