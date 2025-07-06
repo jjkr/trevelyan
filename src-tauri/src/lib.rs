@@ -1,5 +1,5 @@
 use global_hotkey::{hotkey::{Code, HotKey, Modifiers}, GlobalHotKeyManager, GlobalHotKeyEvent, HotKeyState};
-use tauri::Manager;
+use tauri::{Manager, menu::{MenuBuilder, MenuItemBuilder}, tray::TrayIconBuilder};
 use log::info;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -44,6 +44,46 @@ pub fn run() {
 
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
+            // Create system tray menu
+            let show_hide = MenuItemBuilder::with_id("show_hide", "Show/Hide").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
+            let tray_menu = MenuBuilder::new(app)
+                .items(&[&show_hide, &quit])
+                .build()?;
+
+            // Create system tray
+            let _tray = TrayIconBuilder::new()
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&tray_menu)
+                .tooltip("Trevelyan")
+                .on_menu_event(move |app, event| {
+                    let window = app.get_webview_window("main").unwrap();
+                    match event.id.as_ref() {
+                        "show_hide" => {
+                            if window.is_visible().unwrap() {
+                                window.hide().unwrap();
+                            } else {
+                                window.show().unwrap();
+                                window.set_focus().unwrap();
+                            }
+                        }
+                        "quit" => {
+                            app.exit(0);
+                        }
+                        _ => {}
+                    }
+                })
+                .build(app)?;
+
+            // Handle window close event to hide instead of quit
+            let window_clone = main_window.clone();
+            main_window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    window_clone.hide().unwrap();
+                }
+            });
 
             let receiver = GlobalHotKeyEvent::receiver();
             std::thread::spawn(move || loop {
