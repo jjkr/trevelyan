@@ -52,9 +52,21 @@ pub fn run() {
                 .items(&[&show_hide, &quit])
                 .build()?;
 
-            // Create system tray
+            // Create system tray with white icon
+            let tray_icon = {
+                let icon_bytes = include_bytes!("../icons/OriginalLogoWhite.png");
+                match image::load_from_memory(icon_bytes) {
+                    Ok(img) => {
+                        let rgba = img.to_rgba8();
+                        let (width, height) = rgba.dimensions();
+                        tauri::image::Image::new_owned(rgba.into_raw(), width, height)
+                    }
+                    Err(_) => app.default_window_icon().unwrap().clone()
+                }
+            };
+            
             let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+                .icon(tray_icon)
                 .menu(&tray_menu)
                 .tooltip("Trevelyan")
                 .on_menu_event(move |app, event| {
