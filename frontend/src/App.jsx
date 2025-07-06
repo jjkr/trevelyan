@@ -37,6 +37,39 @@ function App() {
     }
   }, [input]);
 
+  // Auto-focus textarea when window gains focus (for hotkey and app start)
+  useEffect(() => {
+    const handleWindowFocus = () => {
+      // Small delay to ensure window is fully focused before focusing textarea
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 100);
+    };
+
+    // Listen for window focus events (when shown via hotkey)
+    window.addEventListener('focus', handleWindowFocus);
+    
+    return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+    };
+  }, []);
+
+  // Auto-focus on initial mount and when canSend becomes available
+  useEffect(() => {
+    const focusTextarea = () => {
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.focus();
+        }
+      }, 200); // Slightly longer delay for initial mount
+    };
+
+    // Focus on initial mount or when canSend changes
+    focusTextarea();
+  }, [canSend]);
+
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
