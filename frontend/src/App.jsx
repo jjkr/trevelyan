@@ -117,7 +117,7 @@ function App() {
             onClick={clearConversation}
             disabled={isStreaming}
           >
-            Clear
+            +
           </button>
         )}
       </div>
