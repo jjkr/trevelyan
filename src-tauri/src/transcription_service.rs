@@ -134,7 +134,7 @@ impl TranscriptionService {
                 }
 
                 // Only transcribe if we have enough new audio or it's been a while
-                let should_transcribe = audio_level > 0.01 || // Voice activity detected
+                let should_transcribe = // audio_level > 0.01 || // Voice activity detected
                     last_transcription_time.elapsed() > Duration::from_secs(2); // Force update every 2 seconds
 
                 if !should_transcribe {

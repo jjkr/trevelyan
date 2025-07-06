@@ -1,4 +1,4 @@
-use global_hotkey::{hotkey::{Code, HotKey, Modifiers}, GlobalHotKeyManager, GlobalHotKeyEvent};
+use global_hotkey::{hotkey::{Code, HotKey, Modifiers}, GlobalHotKeyManager, GlobalHotKeyEvent, HotKeyState};
 use tauri::Manager;
 use std::sync::{Arc, Mutex};
 use log::info;
@@ -19,7 +19,7 @@ use voice_commands::{
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let manager = GlobalHotKeyManager::new().unwrap();
-    let hotkey = HotKey::new(Some(Modifiers::SUPER), Code::Space);
+    let hotkey = HotKey::new(Some(Modifiers::SUPER | Modifiers::SHIFT), Code::Space);
     manager.register(hotkey).unwrap();
 
     tauri::Builder::default()
@@ -69,7 +69,8 @@ pub fn run() {
             let receiver = GlobalHotKeyEvent::receiver();
             std::thread::spawn(move || loop {
                 if let Ok(event) = receiver.recv() {
-                    if event.id == hotkey.id() {
+                    info!("Received global hotkey event: {:?}", event);
+                    if event.id == hotkey.id() && event.state == HotKeyState::Pressed {
                         if main_window.is_visible().unwrap() {
                             main_window.hide().unwrap();
                         } else {
